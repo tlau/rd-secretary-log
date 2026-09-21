@@ -67,16 +67,36 @@
             <!-- Target Period & Year Selection -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-semibold text-stone-700">Target Year</label>
-                    <input type="number" id="targetYear" value="2026" class="mt-1 w-full p-2 border border-stone-300 rounded">
+                    <label class="block text-sm font-semibold text-stone-700">Schedule Period Preset</label>
+                    <select id="targetPeriod" onchange="handlePeriodPresetChange()" class="mt-1 w-full p-2 border border-stone-300 rounded">
+                        <option value="H1">H1 (January – June)</option>
+                        <option value="H2" selected>H2 (July – December)</option>
+                        <option value="custom">Custom Date Range</option>
+                    </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-stone-700">Schedule Period</label>
-                    <select id="targetPeriod" class="mt-1 w-full p-2 border border-stone-300 rounded">
-                        <option value="H1">H1 (January – June)</option>
-                        <option value="H2">H2 (July – December)</option>
-                        <option value="AugDec" selected>August – December (5-Month Log)</option>
-                    </select>
+                    <label class="block text-sm font-semibold text-stone-700">Target Year</label>
+                    <input type="number" id="targetYear" value="2026" onchange="generatePreview()" class="mt-1 w-full p-2 border border-stone-300 rounded">
+                </div>
+            </div>
+
+            <!-- Custom Date Range Controls (Hidden by default unless selected) -->
+            <div id="customRangeControls" class="hidden grid grid-cols-2 md:grid-cols-4 gap-4 bg-stone-50 p-4 rounded border border-stone-200">
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600">Start Month</label>
+                    <select id="startMonth" onchange="generatePreview()" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600">Start Year</label>
+                    <input type="number" id="startYear" value="2026" onchange="generatePreview()" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600">End Month</label>
+                    <select id="endMonth" onchange="generatePreview()" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-stone-600">End Year</label>
+                    <input type="number" id="endYear" value="2026" onchange="generatePreview()" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm">
                 </div>
             </div>
 
@@ -91,11 +111,11 @@
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-stone-700">Last Book Reading Completed</label>
-                    <select id="startChapter" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm bg-white"></select>
+                    <select id="startChapter" onchange="generatePreview()" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm bg-white"></select>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-stone-700">Last Topic Completed</label>
-                    <select id="startTopic" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm bg-white"></select>
+                    <select id="startTopic" onchange="generatePreview()" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm bg-white"></select>
                 </div>
             </div>
 
@@ -116,11 +136,11 @@
                 <!-- Topic Deck Editor -->
                 <details class="group">
                     <summary class="cursor-pointer font-semibold text-amber-900 hover:text-amber-700">
-                        ▶ Custom Topic Deck
+                        ▶ Sequential Topic Deck Manager
                     </summary>
                     <div class="mt-3 space-y-2 p-2 bg-stone-50 rounded border">
-                        <label class="block text-xs font-semibold text-stone-600">Enter Topics (One per line, in preferred rotation order):</label>
-                        <textarea id="topicDeckInput" rows="6" class="w-full p-2 border border-stone-300 rounded text-sm font-mono"></textarea>
+                        <label class="block text-xs font-semibold text-stone-600">Enter Topics in Sequential Order (1 per line):</label>
+                        <textarea id="topicDeckInput" rows="10" class="w-full p-2 border border-stone-300 rounded text-sm font-mono"></textarea>
                         <button type="button" onclick="updateTopicDropdowns()" class="px-3 py-1 bg-stone-600 text-white text-xs rounded hover:bg-stone-700">
                             Apply Topic Deck Changes
                         </button>
@@ -155,7 +175,7 @@
                         <ul style="margin: 2px 0 0 16px; padding: 0;">
                             <li><strong>1st Sunday:</strong> Speaker Meeting</li>
                             <li><strong>2nd Sunday:</strong> Book Reading (1 Chapter)</li>
-                            <li><strong>3rd Sunday:</strong> Topic Session (Drawn from Topic Deck)</li>
+                            <li><strong>3rd Sunday:</strong> Topic Session (Sequential Topic Deck)</li>
                             <li><strong>Subsequent Sundays:</strong> Alternating Book Reading / Topic Session</li>
                         </ul>
                     </div>
@@ -167,6 +187,8 @@
     </div>
 
     <script>
+        const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
         // Official Recovery Dharma 2nd Edition Chapters
         const SECOND_EDITION_CHAPTERS = [
             { title: "Awakening: Buddha", pages: "1–6" },
@@ -208,17 +230,44 @@
         let bookChapters = JSON.parse(JSON.stringify(SECOND_EDITION_CHAPTERS));
 
         let topicDeck = [
-            "Karma",
-            "Mindfulness of the Body Using Breath",
-            "Lovingkindness",
-            "Mindfulness",
-            "Mindfulness of Feeling Tones",
-            "Renunciation",
-            "Mindfulness of the Body Using Elements",
+            "5 Precepts",
             "Spiritual Maturity",
+            "Mindfulness of the Body Using Elements",
             "What We Mean When We Say Suffering",
-            "5 Precepts"
+            "Karma",
+            "Renunciation",
+            "Lovingkindness",
+            "Mindfulness of the Body Using Breath",
+            "Mindfulness",
+            "Mindfulness of Feeling Tones"
         ];
+
+        function populateMonthDropdowns() {
+            const startSel = document.getElementById("startMonth");
+            const endSel = document.getElementById("endMonth");
+            startSel.innerHTML = "";
+            endSel.innerHTML = "";
+
+            MONTH_NAMES.forEach((m, idx) => {
+                startSel.appendChild(new Option(m, idx));
+                endSel.appendChild(new Option(m, idx));
+            });
+
+            startSel.value = 0;  // January
+            endSel.value = 11;  // December
+        }
+
+        function handlePeriodPresetChange() {
+            const preset = document.getElementById("targetPeriod").value;
+            const customControls = document.getElementById("customRangeControls");
+
+            if (preset === "custom") {
+                customControls.classList.remove("hidden");
+            } else {
+                customControls.classList.add("hidden");
+            }
+            generatePreview();
+        }
 
         function handleEditionChange() {
             const edition = document.getElementById("bookEdition").value;
@@ -284,37 +333,66 @@
             topicDeck.forEach((top, idx) => {
                 const opt = document.createElement("option");
                 opt.value = idx;
-                opt.textContent = `${idx + 1}. ${top}`;
+                opt.textContent = `Topic ${idx + 1}: ${top}`;
                 select.appendChild(opt);
             });
 
             if (currentVal !== "" && currentVal < topicDeck.length) {
                 select.value = currentVal;
             } else {
-                const mindIdx = topicDeck.findIndex(t => t.includes("Mindfulness of Feeling"));
-                select.value = mindIdx !== -1 ? mindIdx : 0;
+                select.value = 0;
             }
         }
 
-        function getSundays(year, startMonth, endMonth) {
-            const dates = [];
-            for (let month = startMonth; month <= endMonth; month++) {
-                let d = new Date(year, month, 1);
+        function getSundaysForRange(startYr, startMth, endYr, endMth) {
+            const results = [];
+            let currYr = startYr;
+            let currMth = startMth;
+
+            while (currYr < endYr || (currYr === endYr && currMth <= endMth)) {
+                let d = new Date(currYr, currMth, 1);
                 let monthDates = [];
-                while (d.getMonth() === month) {
+                while (d.getMonth() === currMth) {
                     if (d.getDay() === 0) { // Sunday
                         monthDates.push(new Date(d));
                     }
                     d.setDate(d.getDate() + 1);
                 }
-                dates.push({ monthName: new Date(year, month, 1).toLocaleString('default', { month: 'long' }), meetings: monthDates });
+                results.push({ 
+                    monthName: `${MONTH_NAMES[currMth]} ${currYr}`, 
+                    meetings: monthDates 
+                });
+
+                currMth++;
+                if (currMth > 11) {
+                    currMth = 0;
+                    currYr++;
+                }
             }
-            return dates;
+            return results;
         }
 
         function generatePreview() {
-            const year = parseInt(document.getElementById("targetYear").value);
-            const period = document.getElementById("targetPeriod").value;
+            const preset = document.getElementById("targetPeriod").value;
+            const defaultYear = parseInt(document.getElementById("targetYear").value) || 2026;
+
+            let startYr = defaultYear, endYr = defaultYear;
+            let startMth = 0, endMth = 11;
+            let subtitlePeriod = "";
+
+            if (preset === "H1") {
+                startMth = 0; endMth = 5;
+                subtitlePeriod = `January ${defaultYear} – June ${defaultYear}`;
+            } else if (preset === "H2") {
+                startMth = 6; endMth = 11;
+                subtitlePeriod = `July ${defaultYear} – December ${defaultYear}`;
+            } else {
+                startMth = parseInt(document.getElementById("startMonth").value) || 0;
+                startYr = parseInt(document.getElementById("startYear").value) || defaultYear;
+                endMth = parseInt(document.getElementById("endMonth").value) || 11;
+                endYr = parseInt(document.getElementById("endYear").value) || defaultYear;
+                subtitlePeriod = `${MONTH_NAMES[startMth]} ${startYr} – ${MONTH_NAMES[endMth]} ${endYr}`;
+            }
 
             let lastChapterIdx = parseInt(document.getElementById("startChapter").value) || 0;
             let lastTopicIdx = parseInt(document.getElementById("startTopic").value) || 0;
@@ -322,16 +400,9 @@
             let chapterIdx = (lastChapterIdx + 1) % bookChapters.length;
             let topicIdx = (lastTopicIdx + 1) % topicDeck.length;
 
-            let startMonth = 0, endMonth = 11;
-            let subtitlePeriod = "";
-            if (period === "H1") { startMonth = 0; endMonth = 5; subtitlePeriod = `January ${year} – June ${year}`; }
-            else if (period === "H2") { startMonth = 6; endMonth = 11; subtitlePeriod = `July ${year} – December ${year}`; }
-            else if (period === "AugDec") { startMonth = 7; endMonth = 11; subtitlePeriod = `August ${year} – December ${year}`; }
-
-            // Using textContent with plain ampersand to avoid escaping issues
             document.getElementById("previewSubtitle").textContent = `Meeting Schedule & Rotation Guide • ${subtitlePeriod}`;
 
-            const monthData = getSundays(year, startMonth, endMonth);
+            const monthData = getSundaysForRange(startYr, startMth, endYr, endMth);
             let tableHTML = `<table>
                 <thead>
                     <tr><th>Date</th><th>Sunday</th><th>Meeting Type</th><th>Assignment / Focus</th></tr>
@@ -340,7 +411,7 @@
 
             let rowCount = 0;
             monthData.forEach(mGroup => {
-                tableHTML += `<tr class="month-header"><td colspan="4">${mGroup.monthName} ${year}</td></tr>`;
+                tableHTML += `<tr class="month-header"><td colspan="4">${mGroup.monthName}</td></tr>`;
                 mGroup.meetings.forEach((mDate, idx) => {
                     const ordinalRank = idx + 1;
                     const ordStr = ordinalRank === 1 ? "1st Sunday" : ordinalRank === 2 ? "2nd Sunday" : ordinalRank === 3 ? "3rd Sunday" : `${ordinalRank}th Sunday`;
@@ -358,13 +429,13 @@
                         typeStr = "Book Reading";
                         tagClass = "tag-book";
                         const ch = bookChapters[chapterIdx % bookChapters.length];
-                        chapterIdx++;
+                        chapterIdx = (chapterIdx + 1) % bookChapters.length;
                         focusStr = `<em>${ch.title}</em>${ch.pages ? ' (pages ' + ch.pages + ')' : ''}`;
                     } else {
                         typeStr = "Topic Session";
                         tagClass = "tag-topic";
                         const top = topicDeck[topicIdx % topicDeck.length];
-                        topicIdx++;
+                        topicIdx = (topicIdx + 1) % topicDeck.length;
                         focusStr = top;
                     }
 
@@ -398,6 +469,7 @@
         }
 
         window.onload = function() {
+            populateMonthDropdowns();
             renderTOCEditor();
             populateChapterDropdown();
             document.getElementById("topicDeckInput").value = topicDeck.join("\n");
