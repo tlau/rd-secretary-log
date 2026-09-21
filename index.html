@@ -9,36 +9,41 @@
     <!-- html2pdf.js for Client-Side PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* PDF Render Template Styling */
+        /* PDF Render Template Styling - Full Page Fit */
         #pdf-template {
             font-family: 'Georgia', serif;
             color: #2c2c2c;
             background-color: #faf8f5;
-            padding: 24px;
-            width: 800px;
+            padding: 20px;
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
         }
         #pdf-template table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10pt;
+            font-size: 9.5pt;
         }
         #pdf-template th, #pdf-template td {
-            padding: 8px 10px;
+            padding: 7px 8px;
             text-align: left;
             vertical-align: middle;
         }
         #pdf-template th {
             background-color: #4a3425;
             color: #ffffff;
-            font-size: 9.5pt;
+            font-size: 9pt;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        #pdf-template tr {
+            page-break-inside: avoid;
         }
         #pdf-template tr.month-header td {
             background-color: #dcd3c3;
             font-weight: bold;
             color: #362417;
-            font-size: 10.5pt;
+            font-size: 10pt;
             border-top: 2px solid #8c735d;
             border-bottom: 1px solid #8c735d;
         }
@@ -50,7 +55,7 @@
         .tag-topic { color: #4a5d23; font-weight: bold; }
         .blank-line {
             display: inline-block;
-            width: 170px;
+            width: 160px;
             border-bottom: 1px solid #777;
             margin-left: 4px;
         }
@@ -417,9 +422,9 @@
             document.getElementById("previewSubtitle").textContent = `Meeting Schedule & Rotation Guide • ${subtitlePeriod}`;
 
             const monthData = getSundaysForRange(startYr, startMth, endYr, endMth);
-            let tableHTML = `<table>
+            let tableHTML = `<table style="width:100%;">
                 <thead>
-                    <tr><th>Date</th><th>Sunday</th><th>Meeting Type</th><th>Assignment / Focus</th></tr>
+                    <tr><th style="width:20%;">Date</th><th style="width:20%;">Sunday</th><th style="width:25%;">Meeting Type</th><th style="width:35%;">Assignment / Focus</th></tr>
                 </thead>
                 <tbody>`;
 
@@ -481,11 +486,12 @@
         function downloadPDF() {
             const element = document.getElementById('pdf-template');
             const opt = {
-                margin:       12,
+                margin:       [10, 10, 10, 10],
                 filename:     'recovery_dharma_secretary_log.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+                html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
             };
             html2pdf().set(opt).from(element).save();
         }
