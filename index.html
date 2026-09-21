@@ -328,7 +328,8 @@
             else if (period === "H2") { startMonth = 6; endMonth = 11; subtitlePeriod = `July ${year} – December ${year}`; }
             else if (period === "AugDec") { startMonth = 7; endMonth = 11; subtitlePeriod = `August ${year} – December ${year}`; }
 
-            document.getElementById("previewSubtitle").innerText = `Meeting Schedule &amp; Rotation Guide • ${subtitlePeriod}`;
+            // Using textContent with plain ampersand to avoid escaping issues
+            document.getElementById("previewSubtitle").textContent = `Meeting Schedule & Rotation Guide • ${subtitlePeriod}`;
 
             const monthData = getSundays(year, startMonth, endMonth);
             let tableHTML = `<table>
