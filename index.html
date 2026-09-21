@@ -8,8 +8,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- html2pdf.js for Client-Side PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
-        /* PDF Render Template Styling - Full Page Fit */
+        /* PDF Render Template Styling - Full Page Fit & Clean Page Breaks */
         #pdf-template {
             font-family: 'Georgia', serif;
             color: #2c2c2c;
@@ -28,6 +29,8 @@
             padding: 7px 8px;
             text-align: left;
             vertical-align: middle;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }
         #pdf-template th {
             background-color: #4a3425;
@@ -36,8 +39,9 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        #pdf-template tr {
-            page-break-inside: avoid;
+        #pdf-template tr, #pdf-template tr.month-header {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }
         #pdf-template tr.month-header td {
             background-color: #dcd3c3;
@@ -486,7 +490,7 @@
         function downloadPDF() {
             const element = document.getElementById('pdf-template');
             const opt = {
-                margin:       [10, 10, 10, 10],
+                margin:       [12, 10, 12, 10],
                 filename:     'recovery_dharma_secretary_log.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
