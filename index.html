@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recovery Dharma Schedule Generator</title>
+    <!-- Tailwind CSS for UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2pdf.js for Client-Side PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* PDF Render Template Styling */
+        #pdf-template {
+            font-family: 'Georgia', serif;
+            color: #2c2c2c;
+            background-color: #faf8f5;
+            padding: 24px;
+            width: 800px;
+        }
+        #pdf-template table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10pt;
+        }
+        #pdf-template th, #pdf-template td {
+            padding: 8px 10px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        #pdf-template th {
+            background-color: #4a3425;
+            color: #ffffff;
+            font-size: 9.5pt;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        #pdf-template tr.month-header td {
+            background-color: #dcd3c3;
+            font-weight: bold;
+            color: #362417;
+            font-size: 10.5pt;
+            border-top: 2px solid #8c735d;
+            border-bottom: 1px solid #8c735d;
+        }
+        #pdf-template tr.row-even { background-color: #ffffff; }
+        #pdf-template tr.row-odd { background-color: #f7f4ee; }
+        #pdf-template td.border-b { border-bottom: 1px solid #e2dacd; }
+        .tag-speaker { color: #8b2500; font-weight: bold; }
+        .tag-book { color: #1c5253; font-weight: bold; }
+        .tag-topic { color: #4a5d23; font-weight: bold; }
+        .blank-line {
+            display: inline-block;
+            width: 170px;
+            border-bottom: 1px solid #777;
+            margin-left: 4px;
+        }
+    </style>
+</head>
+<body class="bg-stone-100 text-stone-800 p-6 min-h-screen">
+
+    <div class="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-8">
+        <h1 class="text-2xl font-bold text-amber-900 border-b-2 border-amber-800 pb-2 mb-6">
+            Recovery Dharma Secretary Log Generator
+        </h1>
+
+        <form id="scheduleForm" class="space-y-6">
+            <!-- Target Period & Year Selection -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-semibold text-stone-700">Target Year</label>
+                    <input type="number" id="targetYear" value="2026" class="mt-1 w-full p-2 border border-stone-300 rounded">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-stone-700">Schedule Period</label>
+                    <select id="targetPeriod" class="mt-1 w-full p-2 border border-stone-300 rounded">
+                        <option value="H1">H1 (January – June)</option>
+                        <option value="H2">H2 (July – December)</option>
+                        <option value="AugDec" selected>August – December (5-Month Log)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Book Edition Selector & Starting State Inputs -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-amber-50 p-4 rounded border border-amber-200">
+                <div>
+                    <label class="block text-sm font-semibold text-stone-700">Book Edition</label>
+                    <select id="bookEdition" onchange="handleEditionChange()" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm bg-white">
+                        <option value="2nd" selected>Recovery Dharma (2nd Edition)</option>
+                        <option value="custom">Other / Custom Chapter List</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-stone-700">Last Book Reading Completed</label>
+                    <select id="startChapter" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-stone-700">Last Topic Completed</label>
+                    <select id="startTopic" class="mt-1 w-full p-2 border border-stone-300 rounded text-sm bg-white"></select>
+                </div>
+            </div>
+
+            <!-- Custom Content Managers -->
+            <div class="border border-stone-300 rounded-md p-4 space-y-4">
+                <h3 class="font-bold text-stone-800">Customize Reading Materials &amp; Topics</h3>
+                
+                <!-- Table of Contents Editor -->
+                <details class="group" id="tocDetails">
+                    <summary class="cursor-pointer font-semibold text-amber-900 hover:text-amber-700">
+                        ▶ Table of Contents (Chapters &amp; Page Ranges)
+                    </summary>
+                    <div class="mt-3 space-y-2 max-h-60 overflow-y-auto p-2 bg-stone-50 rounded border" id="tocContainer">
+                        <!-- Dynamic TOC Rows -->
+                    </div>
+                </details>
+
+                <!-- Topic Deck Editor -->
+                <details class="group">
+                    <summary class="cursor-pointer font-semibold text-amber-900 hover:text-amber-700">
+                        ▶ Custom Topic Deck
+                    </summary>
+                    <div class="mt-3 space-y-2 p-2 bg-stone-50 rounded border">
+                        <label class="block text-xs font-semibold text-stone-600">Enter Topics (One per line, in preferred rotation order):</label>
+                        <textarea id="topicDeckInput" rows="6" class="w-full p-2 border border-stone-300 rounded text-sm font-mono"></textarea>
+                        <button type="button" onclick="updateTopicDropdowns()" class="px-3 py-1 bg-stone-600 text-white text-xs rounded hover:bg-stone-700">
+                            Apply Topic Deck Changes
+                        </button>
+                    </div>
+                </details>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex space-x-4">
+                <button type="button" onclick="generatePreview()" class="px-5 py-2.5 bg-stone-700 hover:bg-stone-800 text-white font-medium rounded">
+                    Generate Log
+                </button>
+                <button type="button" onclick="downloadPDF()" class="px-5 py-2.5 bg-amber-800 hover:bg-amber-900 text-white font-medium rounded">
+                    Download Printable PDF
+                </button>
+            </div>
+        </form>
+
+        <!-- Preview Area -->
+        <div class="mt-8 border-t pt-6">
+            <h2 class="text-lg font-bold text-stone-700 mb-4">Secretary Log Preview</h2>
+            <div class="overflow-x-auto bg-stone-200 p-4 rounded flex justify-center">
+                <!-- PDF HTML Render Area -->
+                <div id="pdf-template">
+                    <div class="header" style="text-align: center; border-bottom: 2px solid #6b4c35; padding-bottom: 12px; margin-bottom: 16px;">
+                        <h1 style="margin: 0; font-size: 20pt; color: #4a3425; text-transform: uppercase;">Recovery Dharma Secretary Log</h1>
+                        <p id="previewSubtitle" style="margin: 4px 0 0 0; font-size: 10pt; font-style: italic; color: #666;">Meeting Schedule &amp; Rotation Guide</p>
+                    </div>
+                    
+                    <div style="background-color: #f0ebe1; border-left: 4px solid #6b4c35; padding: 8px 12px; margin-bottom: 16px; font-size: 9pt;">
+                        <strong>Rotation Rules:</strong>
+                        <ul style="margin: 2px 0 0 16px; padding: 0;">
+                            <li><strong>1st Sunday:</strong> Speaker Meeting</li>
+                            <li><strong>2nd Sunday:</strong> Book Reading (1 Chapter)</li>
+                            <li><strong>3rd Sunday:</strong> Topic Session (Drawn from Topic Deck)</li>
+                            <li><strong>Subsequent Sundays:</strong> Alternating Book Reading / Topic Session</li>
+                        </ul>
+                    </div>
+
+                    <div id="previewTableContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Official Recovery Dharma 2nd Edition Chapters
+        const SECOND_EDITION_CHAPTERS = [
+            { title: "Awakening: Buddha", pages: "1–6" },
+            { title: "The Truth: Dharma", pages: "7" },
+            { title: "The First Noble Truth", pages: "8–12" },
+            { title: "The Second Noble Truth", pages: "13–14" },
+            { title: "The Third Noble Truth", pages: "15" },
+            { title: "The Fourth Noble Truth", pages: "16" },
+            { title: "Wise Understanding", pages: "17–19" },
+            { title: "Wise Intention", pages: "20–26" },
+            { title: "Wise Speech", pages: "27–28" },
+            { title: "Wise Action", pages: "29–30" },
+            { title: "Wise Livelihood", pages: "31" },
+            { title: "Wise Effort", pages: "32–33" },
+            { title: "Wise Mindfulness", pages: "34–36" },
+            { title: "Wise Concentration", pages: "37–40" },
+            { title: "Community: Sangha", pages: "41–42" },
+            { title: "Isolation and Connection", pages: "43–45" },
+            { title: "Reaching Out", pages: "46–48" },
+            { title: "Wise Friends and Mentors", pages: "49" },
+            { title: "Service and Generosity", pages: "50–52" },
+            { title: "Recovery is Possible", pages: "53–57" },
+            { title: "Amy's Story", pages: "58–61" },
+            { title: "Chance's Story", pages: "62–66" },
+            { title: "Synyi's Story", pages: "67–71" },
+            { title: "Matthew's Story", pages: "72–77" },
+            { title: "Berlinda's Story", pages: "78–81" },
+            { title: "Jean's Story", pages: "82–85" },
+            { title: "Destiny's Story", pages: "86–90" },
+            { title: "Ned's Story", pages: "91–94" },
+            { title: "Kara's Story", pages: "95–99" },
+            { title: "Unity's Story", pages: "100–104" },
+            { title: "Randall's Story", pages: "105–108" },
+            { title: "Lacey's Story", pages: "109–112" },
+            { title: "Paul's Story", pages: "113–116" },
+            { title: "Eunsung's Story", pages: "117–121" }
+        ];
+
+        let bookChapters = JSON.parse(JSON.stringify(SECOND_EDITION_CHAPTERS));
+
+        let topicDeck = [
+            "Karma",
+            "Mindfulness of the Body Using Breath",
+            "Lovingkindness",
+            "Mindfulness",
+            "Mindfulness of Feeling Tones",
+            "Renunciation",
+            "Mindfulness of the Body Using Elements",
+            "Spiritual Maturity",
+            "What We Mean When We Say Suffering",
+            "5 Precepts"
+        ];
+
+        function handleEditionChange() {
+            const edition = document.getElementById("bookEdition").value;
+            const tocDetails = document.getElementById("tocDetails");
+
+            if (edition === "2nd") {
+                bookChapters = JSON.parse(JSON.stringify(SECOND_EDITION_CHAPTERS));
+                tocDetails.open = false;
+            } else {
+                tocDetails.open = true;
+            }
+
+            renderTOCEditor();
+            populateChapterDropdown();
+            generatePreview();
+        }
+
+        function renderTOCEditor() {
+            const container = document.getElementById("tocContainer");
+            container.innerHTML = "";
+            bookChapters.forEach((ch, idx) => {
+                const row = document.createElement("div");
+                row.className = "flex space-x-2 items-center";
+                row.innerHTML = `
+                    <input type="text" value="${ch.title}" onchange="bookChapters[${idx}].title = this.value; populateChapterDropdown();" class="w-2/3 p-1 border rounded text-xs bg-white">
+                    <span class="text-xs">pp.</span>
+                    <input type="text" value="${ch.pages}" onchange="bookChapters[${idx}].pages = this.value; populateChapterDropdown();" class="w-1/3 p-1 border rounded text-xs bg-white">
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function populateChapterDropdown() {
+            const select = document.getElementById("startChapter");
+            const currentVal = select.value;
+            select.innerHTML = "";
+            bookChapters.forEach((ch, idx) => {
+                const opt = document.createElement("option");
+                opt.value = idx;
+                opt.textContent = `${ch.title}${ch.pages ? ' (pages ' + ch.pages + ')' : ''}`;
+                select.appendChild(opt);
+            });
+
+            if (currentVal !== "" && currentVal < bookChapters.length) {
+                select.value = currentVal;
+            } else {
+                const karaIdx = bookChapters.findIndex(c => c.title.includes("Kara"));
+                select.value = karaIdx !== -1 ? karaIdx : 0;
+            }
+        }
+
+        function updateTopicDropdowns() {
+            const text = document.getElementById("topicDeckInput").value;
+            topicDeck = text.split("\n").map(t => t.trim()).filter(t => t.length > 0);
+            populateTopicDropdown();
+            generatePreview();
+        }
+
+        function populateTopicDropdown() {
+            const select = document.getElementById("startTopic");
+            const currentVal = select.value;
+            select.innerHTML = "";
+            topicDeck.forEach((top, idx) => {
+                const opt = document.createElement("option");
+                opt.value = idx;
+                opt.textContent = `${idx + 1}. ${top}`;
+                select.appendChild(opt);
+            });
+
+            if (currentVal !== "" && currentVal < topicDeck.length) {
+                select.value = currentVal;
+            } else {
+                const mindIdx = topicDeck.findIndex(t => t.includes("Mindfulness of Feeling"));
+                select.value = mindIdx !== -1 ? mindIdx : 0;
+            }
+        }
+
+        function getSundays(year, startMonth, endMonth) {
+            const dates = [];
+            for (let month = startMonth; month <= endMonth; month++) {
+                let d = new Date(year, month, 1);
+                let monthDates = [];
+                while (d.getMonth() === month) {
+                    if (d.getDay() === 0) { // Sunday
+                        monthDates.push(new Date(d));
+                    }
+                    d.setDate(d.getDate() + 1);
+                }
+                dates.push({ monthName: new Date(year, month, 1).toLocaleString('default', { month: 'long' }), meetings: monthDates });
+            }
+            return dates;
+        }
+
+        function generatePreview() {
+            const year = parseInt(document.getElementById("targetYear").value);
+            const period = document.getElementById("targetPeriod").value;
+
+            let lastChapterIdx = parseInt(document.getElementById("startChapter").value) || 0;
+            let lastTopicIdx = parseInt(document.getElementById("startTopic").value) || 0;
+
+            let chapterIdx = (lastChapterIdx + 1) % bookChapters.length;
+            let topicIdx = (lastTopicIdx + 1) % topicDeck.length;
+
+            let startMonth = 0, endMonth = 11;
+            let subtitlePeriod = "";
+            if (period === "H1") { startMonth = 0; endMonth = 5; subtitlePeriod = `January ${year} – June ${year}`; }
+            else if (period === "H2") { startMonth = 6; endMonth = 11; subtitlePeriod = `July ${year} – December ${year}`; }
+            else if (period === "AugDec") { startMonth = 7; endMonth = 11; subtitlePeriod = `August ${year} – December ${year}`; }
+
+            document.getElementById("previewSubtitle").innerText = `Meeting Schedule &amp; Rotation Guide • ${subtitlePeriod}`;
+
+            const monthData = getSundays(year, startMonth, endMonth);
+            let tableHTML = `<table>
+                <thead>
+                    <tr><th>Date</th><th>Sunday</th><th>Meeting Type</th><th>Assignment / Focus</th></tr>
+                </thead>
+                <tbody>`;
+
+            let rowCount = 0;
+            monthData.forEach(mGroup => {
+                tableHTML += `<tr class="month-header"><td colspan="4">${mGroup.monthName} ${year}</td></tr>`;
+                mGroup.meetings.forEach((mDate, idx) => {
+                    const ordinalRank = idx + 1;
+                    const ordStr = ordinalRank === 1 ? "1st Sunday" : ordinalRank === 2 ? "2nd Sunday" : ordinalRank === 3 ? "3rd Sunday" : `${ordinalRank}th Sunday`;
+                    const dateStr = mDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+                    let typeStr = "";
+                    let focusStr = "";
+                    let tagClass = "";
+
+                    if (ordinalRank === 1) {
+                        typeStr = "Speaker Meeting";
+                        tagClass = "tag-speaker";
+                        focusStr = 'Speaker: <span class="blank-line"></span>';
+                    } else if (ordinalRank % 2 === 0) {
+                        typeStr = "Book Reading";
+                        tagClass = "tag-book";
+                        const ch = bookChapters[chapterIdx % bookChapters.length];
+                        chapterIdx++;
+                        focusStr = `<em>${ch.title}</em>${ch.pages ? ' (pages ' + ch.pages + ')' : ''}`;
+                    } else {
+                        typeStr = "Topic Session";
+                        tagClass = "tag-topic";
+                        const top = topicDeck[topicIdx % topicDeck.length];
+                        topicIdx++;
+                        focusStr = top;
+                    }
+
+                    const rowClass = rowCount % 2 === 0 ? "row-even" : "row-odd";
+                    rowCount++;
+
+                    tableHTML += `
+                        <tr class="${rowClass}">
+                            <td class="border-b font-bold">${dateStr}</td>
+                            <td class="border-b italic text-stone-600">${ordStr}</td>
+                            <td class="border-b ${tagClass}">${typeStr}</td>
+                            <td class="border-b">${focusStr}</td>
+                        </tr>`;
+                });
+            });
+
+            tableHTML += `</tbody></table>`;
+            document.getElementById("previewTableContainer").innerHTML = tableHTML;
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('pdf-template');
+            const opt = {
+                margin:       12,
+                filename:     'recovery_dharma_secretary_log.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        window.onload = function() {
+            renderTOCEditor();
+            populateChapterDropdown();
+            document.getElementById("topicDeckInput").value = topicDeck.join("\n");
+            populateTopicDropdown();
+            generatePreview();
+        };
+    </script>
+</body>
+</html>
